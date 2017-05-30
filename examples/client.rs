@@ -3,6 +3,7 @@ extern crate websocket;
 use std::thread;
 use std::sync::mpsc::channel;
 use std::io::stdin;
+// use std::io::{self, Write};
 
 use websocket::{Message, OwnedMessage};
 use websocket::client::ClientBuilder;
@@ -85,7 +86,11 @@ fn main() {
 					}
 				}
 				// Say what we received
-				_ => println!("Receive Loop 3: {:?}", message),
+				_ => {
+					if let OwnedMessage::Text(txt) = message {
+						println!("{}", txt);
+					}
+				},
 			}
 		}
 	});
@@ -93,6 +98,10 @@ fn main() {
 	loop {
 		let mut input = String::new();
 
+		
+		// print!("Self: ");
+		// io::stdout().flush().unwrap();
+		
 		stdin().read_line(&mut input).unwrap();
 
 		let trimmed = input.trim();
@@ -113,14 +122,14 @@ fn main() {
 		if trimmed.len()>7{
 			let (start,end)=trimmed.split_at(6);
 			if start=="change"{
-				message=OwnedMessage::Binary(String::from(end).into_bytes());	
+				message=OwnedMessage::Binary(String::from(end).trim().to_string().into_bytes());	
 			}
 			// message=c.into_bytes();
 		}
 		// let (b,c)=trimmed.split_at(6);
 		// println!("{:?}",b );
 		// println!("{:?}",c );
-		println!("{:?}",message );
+		// println!("{:?}",message );
 		// // change makeapp
 		// let mut start=1;
 		// let mut end=1;
