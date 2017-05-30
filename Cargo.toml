@@ -1,0 +1,7 @@
+[package]
+name = "chatting"
+version = "0.1.0"
+authors = ["makeapp <liuyh1@shanghaitech.edu.cn>"]
+
+[dependencies]
+websocket = "*"
