@@ -10,6 +10,11 @@ use websocket::client::ClientBuilder;
 
 const CONNECTION: &'static str = "ws://127.0.0.1:2794";
 
+// 3 thread
+// Input thread: Read input form stdin, send it to Sender thread
+// Sender thread: Send message to server
+// Receiver thread: Receive message from server
+
 fn main() {
 
 	println!("Connecting to {}", CONNECTION);
@@ -28,6 +33,7 @@ fn main() {
 
 	let tx_1 = tx.clone();
 
+//Sender thread
 	let send_loop = thread::spawn(move || {
 		loop {
 			// Send loop
@@ -58,6 +64,8 @@ fn main() {
 		}
 	});
 
+
+//Receiver thread
 	let receive_loop = thread::spawn(move || {
 		// Receive loop
 		for message in receiver.incoming_messages() {
@@ -95,6 +103,8 @@ fn main() {
 		}
 	});
 
+
+//Input thread
 	loop {
 		let mut input = String::new();
 
