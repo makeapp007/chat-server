@@ -34,7 +34,26 @@ fn msg_construct(structure: helper::ClientToServerMsg) -> Result<String, Error> 
 	Ok(json_string)
 }
 
-
+fn msg_parse(json_string: &str) -> Result<helper::ServerToClientMsg, ()> {
+	// Parse the string of data into serde_json::Value.
+    let v: Result<helper::ServerToClientTextMsg, Error> = serde_json::from_str(json_string);
+    let u: Result<helper::ServerToClientCtrlMsg, Error> = serde_json::from_str(json_string);
+    match v {
+    	Ok(json) => {
+    		let ret = helper::ServerToClientMsg::ServerToClientTextMsg(json);
+    		return Ok(ret)
+    	},
+    	_ => {},
+    };
+    match u {
+    	Ok(json) => {
+    		let ret = helper::ServerToClientMsg::ServerToClientCtrlMsg(json);
+    		return Ok(ret)
+    	},
+    	_ => {},
+    };
+    Err(())
+}
 
 // 3 thread
 // Input thread: Read input form stdin, send it to Sender thread
@@ -122,7 +141,22 @@ fn main() {
 				// Say what we received
 				_ => {
 					if let OwnedMessage::Text(txt) = message {
-						println!("{}", txt);
+						if txt=="Login successfully."{
+							println!("{}",txt );
+							continue;
+						}
+						// print!("{:?}  {}",txt.len(),txt );
+						match msg_parse(txt.as_ref()) {
+						    Ok(expr) => match expr {
+						        helper::ServerToClientMsg::ServerToClientTextMsg(m) => println!("User {}: {}", m.from_id[0],m.data),
+						        helper::ServerToClientMsg::ServerToClientCtrlMsg(m) => println!("{:?}",m.data ),
+						        //println!("ERROR! client should not receive ctrl message, message is {:?}", m),
+						    },
+						    Err(e) => println!("error occurs in receiving, error is {:?}",e),
+						};
+
+						
+						// println!("aa  {}", msg_struct.msg_type);
 					}
 				},
 			}

@@ -22,26 +22,6 @@ use rand::{thread_rng, Rng};
 
 mod helper;
 
-#[derive(Debug)]
-pub enum ServerToClientMsg {
-	ServerToClientCtrlMsg(ServerToClientCtrlMsg),
-	ServerToClientTextMsg(ServerToClientTextMsg),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ServerToClientCtrlMsg {
-	msg_type: u8, // 1
-	opcode: u8, // odd number
-	data: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ServerToClientTextMsg {
-	msg_type: u8, // 0
-	from_type: u8, // 0=>userID, 1=>groupID
-	from_id: [u32; 2], // [userID, groupID]
-	data: String,
-}
 
 
 
@@ -92,11 +72,11 @@ fn msg_parse(json_string: &str) -> Result<helper::ClientToServerMsg, ()> {
     Err(())
 }
 
-fn msg_construct(structure: ServerToClientMsg) -> Result<String, Error> {
+fn msg_construct(structure: helper::ServerToClientMsg) -> Result<String, Error> {
 	let json_string = 
 	match structure {
-		ServerToClientMsg::ServerToClientTextMsg(m) => serde_json::to_string(&m)?,
-		ServerToClientMsg::ServerToClientCtrlMsg(m) => serde_json::to_string(&m)?,
+		helper::ServerToClientMsg::ServerToClientTextMsg(m) => serde_json::to_string(&m)?,
+		helper::ServerToClientMsg::ServerToClientCtrlMsg(m) => serde_json::to_string(&m)?,
 	};
 	Ok(json_string)
 }
@@ -105,23 +85,23 @@ fn text_msg_process(m: &helper::ClientToServerTextMsg, from_id: u32) -> Result<S
 	match m.to_type {
 		0 => {
 			// this message is sent to a user
-			let v: ServerToClientTextMsg = ServerToClientTextMsg {
+			let v: helper::ServerToClientTextMsg = helper::ServerToClientTextMsg {
 				msg_type: 0,
 				from_type: 0,
 				from_id: [from_id, 0],
 				data: m.data.clone(),
 			};
-			msg_construct(ServerToClientMsg::ServerToClientTextMsg(v))
+			msg_construct(helper::ServerToClientMsg::ServerToClientTextMsg(v))
 		},
 		1 => {
 			// this message is sent to a group
-			let v: ServerToClientTextMsg = ServerToClientTextMsg {
+			let v: helper::ServerToClientTextMsg = helper::ServerToClientTextMsg {
 				msg_type: 0,
 				from_type: 1,
 				from_id: [from_id, m.to_id], // to_id is where the sender lives and receiver stays
 				data: m.data.clone(),
 			};
-			msg_construct(ServerToClientMsg::ServerToClientTextMsg(v))
+			msg_construct(helper::ServerToClientMsg::ServerToClientTextMsg(v))
 		},
 		_ => Err(ser::Error::custom(
 			format!("Invalid to_type {0} in ClientToServerTextMsg of text_msg_process().", m.to_type)
@@ -130,7 +110,7 @@ fn text_msg_process(m: &helper::ClientToServerTextMsg, from_id: u32) -> Result<S
 }
 
 fn ctrl_msg_process(m: &helper::ClientToServerCtrlMsg, from_id: u32, user_table: Arc<Mutex<HashMap<u32, User>>>, group_table: Arc<RwLock<HashMap<u32, Group>>>) -> Result<String, Error> {
-	let mut v: ServerToClientCtrlMsg = ServerToClientCtrlMsg {
+	let mut v: helper::ServerToClientCtrlMsg = helper::ServerToClientCtrlMsg {
 		msg_type: 1,
 		opcode: m.opcode + 1,
 		data: "".to_string(),
@@ -200,7 +180,7 @@ fn ctrl_msg_process(m: &helper::ClientToServerCtrlMsg, from_id: u32, user_table:
 			format!("Invalid opcode {0} in ClientToServerCtrlMsg of ctrl_msg_process().", m.opcode)
 			)),
 	};
-	msg_construct(ServerToClientMsg::ServerToClientCtrlMsg(v))
+	msg_construct(helper::ServerToClientMsg::ServerToClientCtrlMsg(v))
 }
 
 

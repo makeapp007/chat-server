@@ -1,8 +1,24 @@
-6.14
-use mod to create
-	helper.rs
-client function
-	recv
+todo
 latex report
-rwlock
+server:
+	add function for sending username to client
+check visibility
+	if only read, use construct function instead of pub
+use trait for msg_parse, msg_construct
+
+--------------------
+bugs
+1.
+1 2 dsfa
+"New group is created, group ID = 1348577084"
+0 1 1348577084 hew
+User 1: hew
+when user1 receive message from himself.
+
+2.
+0 1 3 sfad
+cause exception
+thread '<unnamed>' panicked at 'no entry found for key', /buildslave/rust-buildbot/slave/stable-dist-rustc-linux/build/src/libcore/option.rs:715
+
+
 
