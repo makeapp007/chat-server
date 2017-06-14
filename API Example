@@ -8,12 +8,12 @@ data: newNameIsZean
 //new group
 msgType:1
 opcode: 2
-data: t
+data: anyvalue
 
 //join group
 msgType:1
 opcode: 4
-data: t
+data: groupID
 
 //group chat
 msgType:0

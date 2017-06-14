@@ -61,29 +61,6 @@ fn msgConstruct(structure: clientToServerMsg) -> Result<String, Error> {
 }
 
 
-fn typed_example() -> Result<(), Error> {
-    // Some JSON input data as a &str. Maybe this comes from the user.
-    let data = r#"{
-                    "name": "John Doe",
-                    "age": 43,
-                    "phones": [
-                      "+44 1234567",
-                      "+44 2345678"
-                    ]
-                  }"#;
-
-    // Parse the string of data into a Person object. This is exactly the
-    // same function as the one that produced serde_json::Value above, but
-    // now we are asking it for a Person as output.
-    let p: Person = serde_json::from_str(data)?;
-
-    // Do things just like with any other Rust data structure.
-    println!("Please call {} at the number {}", p.name, p.phones[0]);
-
-    Ok(())
-}
-
-
 
 // 3 thread
 // Input thread: Read input form stdin, send it to Sender thread
@@ -191,11 +168,12 @@ fn main() {
 
 		// returning at most n items.
 		let v: Vec<&str> = trimmed.splitn(4,' ').collect();
-		for i in &v{
-			println!("{:?}",i );
-		}
-		println!("");
+		// for i in &v{
+		// 	println!("{:?}",i );
+		// }
+		// println!("");
 		// println!("{:?}",v[0] );
+
 
 		// let mut message = match trimmed {
 		// 	"/close" => {
@@ -209,9 +187,12 @@ fn main() {
 		// 	_ => OwnedMessage::Text(trimmed.to_string()),
 		// };
 
-		// let a =typed_example();
-		// println!("a is  {:?}", a);
 
+		// check input validation 
+		if v.len()<3 {
+			println!("input message is too small");
+			continue;
+		}
 		let v0= match v[0].parse::<u8>() {
 		    Ok(expr) => expr,
 		    _ => {
@@ -226,19 +207,27 @@ fn main() {
 		    	continue;
 		    },
 		};
+		if v0==0{
+			if v.len()!=4{
+				println!("input message length is not correct");
+				continue;
+			}
+		}
+		else if v0==1{
+			if v.len()!=3{
+				println!("input message length is not correct");
+				continue;
+			}
+		}
+		// parse input
 		let msgSend = match v0 {
 		    1 => {
-		    	if v.len()==3{
-		    		let m=clientToServerCtrlMsg {
-					msgType: v0,
-					opcode: v1,
-					data: v[2].to_string(),
-					};
-					msgConstruct(clientToServerMsg::clientToServerCtrlMsg(m))
-		    	}
-		    	else{
-			    	Err(ser::Error::custom(format!("Invalid input {0} in clientToServerTextMsg construction.", v[0])))
-		    	}
+	    		let m=clientToServerCtrlMsg {
+				msgType: v0,
+				opcode: v1,
+				data: v[2].to_string(),
+				};
+				msgConstruct(clientToServerMsg::clientToServerCtrlMsg(m))
 			},
 			0 => {
 			    let m =clientToServerTextMsg {
@@ -250,7 +239,7 @@ fn main() {
 				msgConstruct(clientToServerMsg::clientToServerTextMsg(m))
 			},
 		    _ => Err(ser::Error::custom(
-			format!("Invalid input {0} in clientToServerTextMsg construction.", v[0])
+			format!("Invalid input in clientToServerTextMsg construction.")
 			)),
 		};
 
@@ -283,6 +272,7 @@ fn main() {
 		// 	// flag=0;
 		// }
 
+		//send message
 		match msgSend {
 		    Ok(expr) => {
 		    	let msgSendOwn=OwnedMessage::Text(expr);

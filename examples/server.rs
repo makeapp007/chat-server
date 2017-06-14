@@ -126,7 +126,7 @@ fn textMsgProcess(m: &clientToServerTextMsg, from_id: u32) -> Result<String, Err
 		0 => {
 			// this message is sent to a user
 			let v: serverToClientTextMsg = serverToClientTextMsg {
-				msgType: 1,
+				msgType: 0,
 				fromType: 0,
 				fromID: [from_id, 0],
 				data: m.data.clone(),
@@ -136,7 +136,7 @@ fn textMsgProcess(m: &clientToServerTextMsg, from_id: u32) -> Result<String, Err
 		1 => {
 			// this message is sent to a group
 			let v: serverToClientTextMsg = serverToClientTextMsg {
-				msgType: 1,
+				msgType: 0,
 				fromType: 1,
 				fromID: [from_id, m.toID], // toID is where the sender lives and receiver stays
 				data: m.data.clone(),
