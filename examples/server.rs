@@ -257,7 +257,9 @@ fn main() {
 								} else {
 									let gt = group_table.read().unwrap();
 									for i in &gt[&id].user_list {
-										ut[i].msg_tx.send(new_message.clone()).unwrap();
+										if ut[i].uid != from_uid {
+											ut[i].msg_tx.send(new_message.clone()).unwrap();
+										}
 									}
 								};
 							},
