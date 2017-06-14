@@ -7,7 +7,7 @@ extern crate rand;
 extern crate serde_derive;
 
 use serde_json::Error;
-use serde::ser::{self, Serialize, Serializer};
+use serde::ser::{self};
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -20,46 +20,26 @@ use websocket::sync::Server;
 use std::sync::mpsc::*;
 use rand::{thread_rng, Rng};
 
-#[derive(Debug)]
-pub enum clientToServerMsg {
-	clientToServerCtrlMsg(clientToServerCtrlMsg),
-	clientToServerTextMsg(clientToServerTextMsg),
-}
+mod helper;
 
 #[derive(Debug)]
-pub enum serverToClientMsg {
-	serverToClientCtrlMsg(serverToClientCtrlMsg),
-	serverToClientTextMsg(serverToClientTextMsg),
+pub enum ServerToClientMsg {
+	ServerToClientCtrlMsg(ServerToClientCtrlMsg),
+	ServerToClientTextMsg(ServerToClientTextMsg),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct clientToServerCtrlMsg {
-	msgType: u8, // 1
-	opcode: u8, // even number
-	data: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct clientToServerTextMsg {
-	msgType: u8, // 0
-	toType: u8, // 0=>userID, 1=>groupID
-	toID: u32,
-	data: String,
-}
-
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct serverToClientCtrlMsg {
-	msgType: u8, // 1
+pub struct ServerToClientCtrlMsg {
+	msg_type: u8, // 1
 	opcode: u8, // odd number
 	data: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct serverToClientTextMsg {
-	msgType: u8, // 0
-	fromType: u8, // 0=>userID, 1=>groupID
-	fromID: [u32; 2], // [userID, groupID]
+pub struct ServerToClientTextMsg {
+	msg_type: u8, // 0
+	from_type: u8, // 0=>userID, 1=>groupID
+	from_id: [u32; 2], // [userID, groupID]
 	data: String,
 }
 
@@ -91,20 +71,20 @@ enum IDInfo {
 	GroupID(u32),
 }
 
-fn msgParse(json_string: &str) -> Result<clientToServerMsg, ()> {
+fn msg_parse(json_string: &str) -> Result<helper::ClientToServerMsg, ()> {
 	// Parse the string of data into serde_json::Value.
-    let v: Result<clientToServerTextMsg, Error> = serde_json::from_str(json_string);
-    let u: Result<clientToServerCtrlMsg, Error> = serde_json::from_str(json_string);
+    let v: Result<helper::ClientToServerTextMsg, Error> = serde_json::from_str(json_string);
+    let u: Result<helper::ClientToServerCtrlMsg, Error> = serde_json::from_str(json_string);
     match v {
     	Ok(json) => {
-    		let ret = clientToServerMsg::clientToServerTextMsg(json);
+    		let ret = helper::ClientToServerMsg::ClientToServerTextMsg(json);
     		return Ok(ret)
     	},
     	_ => {},
     };
     match u {
     	Ok(json) => {
-    		let ret = clientToServerMsg::clientToServerCtrlMsg(json);
+    		let ret = helper::ClientToServerMsg::ClientToServerCtrlMsg(json);
     		return Ok(ret)
     	},
     	_ => {},
@@ -112,46 +92,46 @@ fn msgParse(json_string: &str) -> Result<clientToServerMsg, ()> {
     Err(())
 }
 
-fn msgConstruct(structure: serverToClientMsg) -> Result<String, Error> {
+fn msg_construct(structure: ServerToClientMsg) -> Result<String, Error> {
 	let json_string = 
 	match structure {
-		serverToClientMsg::serverToClientTextMsg(m) => serde_json::to_string(&m)?,
-		serverToClientMsg::serverToClientCtrlMsg(m) => serde_json::to_string(&m)?,
+		ServerToClientMsg::ServerToClientTextMsg(m) => serde_json::to_string(&m)?,
+		ServerToClientMsg::ServerToClientCtrlMsg(m) => serde_json::to_string(&m)?,
 	};
 	Ok(json_string)
 }
 
-fn textMsgProcess(m: &clientToServerTextMsg, from_id: u32) -> Result<String, Error> {
-	match m.toType {
+fn text_msg_process(m: &helper::ClientToServerTextMsg, from_id: u32) -> Result<String, Error> {
+	match m.to_type {
 		0 => {
 			// this message is sent to a user
-			let v: serverToClientTextMsg = serverToClientTextMsg {
-				msgType: 0,
-				fromType: 0,
-				fromID: [from_id, 0],
+			let v: ServerToClientTextMsg = ServerToClientTextMsg {
+				msg_type: 0,
+				from_type: 0,
+				from_id: [from_id, 0],
 				data: m.data.clone(),
 			};
-			msgConstruct(serverToClientMsg::serverToClientTextMsg(v))
+			msg_construct(ServerToClientMsg::ServerToClientTextMsg(v))
 		},
 		1 => {
 			// this message is sent to a group
-			let v: serverToClientTextMsg = serverToClientTextMsg {
-				msgType: 0,
-				fromType: 1,
-				fromID: [from_id, m.toID], // toID is where the sender lives and receiver stays
+			let v: ServerToClientTextMsg = ServerToClientTextMsg {
+				msg_type: 0,
+				from_type: 1,
+				from_id: [from_id, m.to_id], // to_id is where the sender lives and receiver stays
 				data: m.data.clone(),
 			};
-			msgConstruct(serverToClientMsg::serverToClientTextMsg(v))
+			msg_construct(ServerToClientMsg::ServerToClientTextMsg(v))
 		},
 		_ => Err(ser::Error::custom(
-			format!("Invalid toType {0} in clientToServerTextMsg of textMsgProcess().", m.toType)
+			format!("Invalid to_type {0} in ClientToServerTextMsg of text_msg_process().", m.to_type)
 			)),
 	}
 }
 
-fn ctrlMsgProcess(m: &clientToServerCtrlMsg, from_id: u32, user_table: Arc<Mutex<HashMap<u32, User>>>, group_table: Arc<RwLock<HashMap<u32, Group>>>) -> Result<String, Error> {
-	let mut v: serverToClientCtrlMsg = serverToClientCtrlMsg {
-		msgType: 1,
+fn ctrl_msg_process(m: &helper::ClientToServerCtrlMsg, from_id: u32, user_table: Arc<Mutex<HashMap<u32, User>>>, group_table: Arc<RwLock<HashMap<u32, Group>>>) -> Result<String, Error> {
+	let mut v: ServerToClientCtrlMsg = ServerToClientCtrlMsg {
+		msg_type: 1,
 		opcode: m.opcode + 1,
 		data: "".to_string(),
 	};
@@ -217,10 +197,10 @@ fn ctrlMsgProcess(m: &clientToServerCtrlMsg, from_id: u32, user_table: Arc<Mutex
 			}
 		},
 		_ => return Err(ser::Error::custom(
-			format!("Invalid opcode {0} in clientToServerCtrlMsg of ctrlMsgProcess().", m.opcode)
+			format!("Invalid opcode {0} in ClientToServerCtrlMsg of ctrl_msg_process().", m.opcode)
 			)),
 	};
-	msgConstruct(serverToClientMsg::serverToClientCtrlMsg(v))
+	msg_construct(ServerToClientMsg::ServerToClientCtrlMsg(v))
 }
 
 
@@ -246,17 +226,17 @@ fn main() {
 			match message {
 				OwnedMessage::Close(_) => {},
 				OwnedMessage::Text(s) => {
-					if let Ok(msg_struct) = msgParse(s.as_ref()) {
+					if let Ok(msg_struct) = msg_parse(s.as_ref()) {
 						let id_info: IDInfo;
 						let msg_str_to_send = 
 							match msg_struct {
-								clientToServerMsg::clientToServerTextMsg(m) => {
-									match textMsgProcess(&m, from_uid) {
+								helper::ClientToServerMsg::ClientToServerTextMsg(m) => {
+									match text_msg_process(&m, from_uid) {
 										Ok(json_string) => {
 											id_info = 
-												match m.toType {
-													0 => IDInfo::UserID(m.toID),
-													1 => IDInfo::GroupID(m.toID),
+												match m.to_type {
+													0 => IDInfo::UserID(m.to_id),
+													1 => IDInfo::GroupID(m.to_id),
 													_ => unimplemented!(),// should never happen
 												};
 											json_string
@@ -267,8 +247,8 @@ fn main() {
 										},
 									}
 								},
-								clientToServerMsg::clientToServerCtrlMsg(m) => {
-									match ctrlMsgProcess(&m, from_uid, user_table.clone(), group_table.clone()) {
+								helper::ClientToServerMsg::ClientToServerCtrlMsg(m) => {
+									match ctrl_msg_process(&m, from_uid, user_table.clone(), group_table.clone()) {
 										Ok(json_string) => {
 											id_info = IDInfo::UserID(from_uid);
 											json_string

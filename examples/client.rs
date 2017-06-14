@@ -5,8 +5,9 @@ extern crate serde_json;
 
 #[macro_use]
 extern crate serde_derive;
+mod helper;
 
-use serde::ser::{self, Serialize, Serializer};
+use serde::ser::{self};
 
 
 use serde_json::Error;
@@ -21,41 +22,14 @@ use websocket::client::ClientBuilder;
 
 const CONNECTION: &'static str = "ws://127.0.0.1:2794";
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Person {
-    name: String,
-    age: u8,
-    phones: Vec<String>,
-}
-#[derive(Debug)]
-pub enum clientToServerMsg {
-	clientToServerCtrlMsg(clientToServerCtrlMsg),
-	clientToServerTextMsg(clientToServerTextMsg),
-}
-
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct clientToServerCtrlMsg {
-	msgType: u8, // 1
-	opcode: u8, // even number
-	data: String,
-}
-#[derive(Debug, Serialize, Deserialize)]
-pub struct clientToServerTextMsg {
-	msgType: u8, // 0
-	toType: u8, // 0=>userID, 1=>groupID
-	toID: u32,
-	data: String,
-}
 
 
 
-
-fn msgConstruct(structure: clientToServerMsg) -> Result<String, Error> {
+fn msg_construct(structure: helper::ClientToServerMsg) -> Result<String, Error> {
 	let json_string = 
 	match structure {
-		clientToServerMsg::clientToServerTextMsg(m) => serde_json::to_string(&m)?,
-		clientToServerMsg::clientToServerCtrlMsg(m) => serde_json::to_string(&m)?,
+		helper::ClientToServerMsg::ClientToServerTextMsg(m) => serde_json::to_string(&m)?,
+		helper::ClientToServerMsg::ClientToServerCtrlMsg(m) => serde_json::to_string(&m)?,
 	};
 	Ok(json_string)
 }
@@ -196,7 +170,7 @@ fn main() {
 		let v0= match v[0].parse::<u8>() {
 		    Ok(expr) => expr,
 		    _ => {
-		    	println!("msgType is not a number");
+		    	println!("msg_type is not a number");
 		    	continue;
 		    },
 		};
@@ -220,26 +194,26 @@ fn main() {
 			}
 		}
 		// parse input
-		let msgSend = match v0 {
+		let msg_send = match v0 {
 		    1 => {
-	    		let m=clientToServerCtrlMsg {
-				msgType: v0,
+	    		let m=helper::ClientToServerCtrlMsg {
+				msg_type: v0,
 				opcode: v1,
 				data: v[2].to_string(),
 				};
-				msgConstruct(clientToServerMsg::clientToServerCtrlMsg(m))
+				msg_construct(helper::ClientToServerMsg::ClientToServerCtrlMsg(m))
 			},
 			0 => {
-			    let m =clientToServerTextMsg {
-					msgType: v0,
-					toType: v1,
-					toID: v[2].parse::<u32>().unwrap(),
+			    let m =helper::ClientToServerTextMsg {
+					msg_type: v0,
+					to_type: v1,
+					to_id: v[2].parse::<u32>().unwrap(),
 					data: v[3].to_string(),
 				};				
-				msgConstruct(clientToServerMsg::clientToServerTextMsg(m))
+				msg_construct(helper::ClientToServerMsg::ClientToServerTextMsg(m))
 			},
 		    _ => Err(ser::Error::custom(
-			format!("Invalid input in clientToServerTextMsg construction.")
+			format!("Invalid input in ClientToServerTextMsg construction.")
 			)),
 		};
 
@@ -273,10 +247,10 @@ fn main() {
 		// }
 
 		//send message
-		match msgSend {
+		match msg_send {
 		    Ok(expr) => {
-		    	let msgSendOwn=OwnedMessage::Text(expr);
-		    	match tx.send(msgSendOwn) {
+		    	let msg_send_own=OwnedMessage::Text(expr);
+		    	match tx.send(msg_send_own) {
 					Ok(()) => (),
 					Err(e) => {
 						println!("Main Loop: {:?}", e);
