@@ -1,0 +1,38 @@
+API Example
+
+//change name
+msgType:1
+opcode:0
+data: newNameIsZean
+
+//new group
+msgType:1
+opcode: 2
+data: t
+
+//join group
+msgType:1
+opcode: 4
+data: t
+
+//group chat
+msgType:0
+toType: 1
+toID: integer
+text: string
+
+//broadcast
+msgType:0
+toType: 1
+toID: 0
+text: string
+
+//private chatting
+msgType:0
+toType: 0
+toID: integer
+text: string
+
+
+
+
