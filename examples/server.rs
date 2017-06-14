@@ -81,7 +81,7 @@ fn msg_construct(structure: helper::ServerToClientMsg) -> Result<String, Error> 
 	Ok(json_string)
 }
 
-fn text_msg_process(m: &helper::ClientToServerTextMsg, from_id: u32) -> Result<String, Error> {
+fn text_msg_process(m: &helper::ClientToServerTextMsg, from_id: u32, user_table: Arc<Mutex<HashMap<u32, User>>>, group_table: Arc<RwLock<HashMap<u32, Group>>>) -> Result<String, Error> {
 	match m.to_type {
 		0 => {
 			// this message is sent to a user
@@ -91,7 +91,13 @@ fn text_msg_process(m: &helper::ClientToServerTextMsg, from_id: u32) -> Result<S
 				from_id: [from_id, 0],
 				data: m.data.clone(),
 			};
-			msg_construct(helper::ServerToClientMsg::ServerToClientTextMsg(v))
+			if user_table.lock().unwrap().contains_key(&m.to_id){
+				msg_construct(helper::ServerToClientMsg::ServerToClientTextMsg(v))
+			} else {
+				Err(ser::Error::custom(
+					format!("Invalid to_id (user id) {0} in ClientToServerTextMsg of text_msg_process().", m.to_id)
+				))
+			}
 		},
 		1 => {
 			// this message is sent to a group
@@ -101,7 +107,13 @@ fn text_msg_process(m: &helper::ClientToServerTextMsg, from_id: u32) -> Result<S
 				from_id: [from_id, m.to_id], // to_id is where the sender lives and receiver stays
 				data: m.data.clone(),
 			};
-			msg_construct(helper::ServerToClientMsg::ServerToClientTextMsg(v))
+			if group_table.read().unwrap().contains_key(&m.to_id) {
+				msg_construct(helper::ServerToClientMsg::ServerToClientTextMsg(v))
+			} else {
+				Err(ser::Error::custom(
+					format!("Invalid to_id (group id) {0} in ClientToServerTextMsg of text_msg_process().", m.to_id)
+				))
+			}
 		},
 		_ => Err(ser::Error::custom(
 			format!("Invalid to_type {0} in ClientToServerTextMsg of text_msg_process().", m.to_type)
@@ -211,7 +223,7 @@ fn main() {
 						let msg_str_to_send = 
 							match msg_struct {
 								helper::ClientToServerMsg::ClientToServerTextMsg(m) => {
-									match text_msg_process(&m, from_uid) {
+									match text_msg_process(&m, from_uid, user_table.clone(), group_table.clone()) {
 										Ok(json_string) => {
 											id_info = 
 												match m.to_type {
