@@ -188,6 +188,37 @@ fn ctrl_msg_process(m: &helper::ClientToServerCtrlMsg, from_id: u32, user_table:
 				v.data = format!("Invalid group ID = {}", m.data.clone());
 			}
 		},
+		8 => {
+			// request nickname of a user
+			let x = m.data.clone().parse::<u32>();
+			if let Ok(num) = x {
+				match user_table.lock().unwrap().get_mut(&num) {
+					Some(expr) => v.data = expr.name.clone(),
+					None => v.data = format!("Invalid User ID = {}", m.data.clone()),
+				}
+			} else {
+				v.data = format!("Invalid User ID = {}", m.data.clone());
+			}
+		},
+		10 => {
+			// request nickname of a group
+			let x = m.data.clone().parse::<u32>();
+			if let Ok(num) = x {
+				match group_table.read().unwrap().get(&num) {
+					Some(expr) => {
+						let mut result: Vec<String> = Vec::new();
+						let ut = user_table.lock().unwrap();
+						for user in &expr.user_list { // TODO: use map
+							result.push(ut[user].name.clone());
+						};
+						v.data = serde_json::to_string(&result)?;
+					},
+					None => v.data = format!("Invalid group ID = {}", m.data.clone()),
+				};
+			} else {
+				v.data = format!("Invalid group ID = {}", m.data.clone());
+			}
+		},
 		_ => return Err(ser::Error::custom(
 			format!("Invalid opcode {0} in ClientToServerCtrlMsg of ctrl_msg_process().", m.opcode)
 			)),
